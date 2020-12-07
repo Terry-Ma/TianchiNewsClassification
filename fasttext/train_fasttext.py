@@ -6,6 +6,7 @@ sys.path.append('../')
 
 from sklearn.metrics import f1_score
 from utils import *
+from data_process import *
 
 train_path = './fasttext_train'
 val_path = './fasttext_val'

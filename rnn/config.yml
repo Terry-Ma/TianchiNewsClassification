@@ -1,9 +1,16 @@
 preprocess:
   max_len: 1024
   min_freq: 5
+  is_demo: 1
 
 train:
   batch_size: 64
   optimizer: 'adam'
-  lr: 3e-4
+  lr: 0.0003
   use_gpu_num: 1
+  train_steps: 1000
+
+model:
+  embed_size: 128
+  hidden_num: 256
+  layer_num: 3
