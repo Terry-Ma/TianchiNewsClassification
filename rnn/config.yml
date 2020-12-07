@@ -1,0 +1,9 @@
+preprocess:
+  max_len: 1024
+  min_freq: 5
+
+train:
+  batch_size: 64
+  optimizer: 'adam'
+  lr: 3e-4
+  use_gpu_num: 1
