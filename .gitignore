@@ -1,7 +1,7 @@
 rank4_NLP_textclassification/
 __pycache__
 submit
-data/
+data/*
 !data/.gitkeep
 fasttext/fasttext*
 */train_log/*
