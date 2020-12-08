@@ -1,14 +1,16 @@
 preprocess:
   max_len: 1024
   min_freq: 5
-  is_demo: 1
+  is_demo: 0
 
 train:
-  batch_size: 64
+  cuda_visible_devices: '1'
+  batch_size: 128
   optimizer: 'adam'
   lr: 0.0003
-  use_gpu_num: 1
-  train_steps: 1000
+  train_steps: 5000
+  steps_per_check: 100
+  steps_per_checkpoint: 500
 
 model:
   embed_size: 128

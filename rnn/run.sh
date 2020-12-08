@@ -1,1 +1,1 @@
-python main.py --batch_size 512 --train_steps 10000
+python main.py --cuda_visible_devices '1' --config_path './config.yml' --log_file 'embed_128_hidden_256_GRU.log' --checkpoint_dir 'embed_128_hidden_256_GRU/'

@@ -11,3 +11,6 @@ fasttext/fasttext*
 
 */train_log/*
 !*/train_log/.gitkeep
+
+*/checkpoint/*
+!*/checkpoint/.gitkeep

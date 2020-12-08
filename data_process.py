@@ -22,7 +22,7 @@ def generate_train_val_iter(train_X, train_y, val_X, val_y, config):
 
     return train_iter, val_iter
 
-def data_process(config):
+def generate_tensor(config):
     train_X, train_y, val_X, val_y, test_X = generate_train_val_test(config['preprocess']['is_demo'])
     train_X, train_y, val_X, val_y, test_X, vocab = data2tensor(
         train_X, train_y, val_X, val_y, test_X, config['preprocess']['max_len'], config['preprocess']['min_freq'])
@@ -95,5 +95,5 @@ if __name__ == '__main__':
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
     logger.setLevel(logging.DEBUG)
-    train_X, train_y, val_X, val_y, test_X, vocab = data_process(config)
+    train_X, train_y, val_X, val_y, test_X, vocab = generate_tensor(config)
     train_iter, val_iter = generate_train_val_iter(train_X, train_y, val_X, val_y, config)
