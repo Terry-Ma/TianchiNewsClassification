@@ -37,7 +37,7 @@ def generate_config(args):
                     break
             if not find_k:
                 config['train'][key] = value
-    logger.info('will use config {}'.format(config))
+    logger.info('will use config \n{}'.format(config))
 
     return config
 

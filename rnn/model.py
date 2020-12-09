@@ -18,12 +18,12 @@ class Model(BaseModel):
     def __init__(self, config):
         super().__init__(config)
         # gpu device
-        os.environ["CUDA_VISIBLE_DEVICES"] = self.config['train']['cuda_visible_devices']
+        os.environ['CUDA_VISIBLE_DEVICES'] = self.config['train']['cuda_visible_devices']
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         logger.info('use device {}'.format(self.device))
         # init model
         self.model = BiGRU(config).to(self.device)
-        logger.info('init model {}'.format(self.model))
+        logger.info('init model \n{}'.format(self.model))
         # load checkpoint
         checkpoint_path = './checkpoint/{}'.format(self.config['model']['load_checkpoint'])
         if self.config['model']['load_checkpoint'] != '' and os.path.exists(checkpoint_path):
@@ -89,18 +89,18 @@ class Model(BaseModel):
                     # max f1 model
                     if check_val_f1 > max_val_f1:
                         max_val_f1 = check_val_f1
-                        torch.save(self.model.state_dict(), './checkpoint/{}/best_model.pkl'.format(self.config['train']['checkpoint_dir']))
+                        torch.save(self.model.state_dict(), './checkpoint/{}/best_model.pkl'.format(
+                            self.config['train']['checkpoint_dir']))
                     # log
-                    logger.info('epoch {0}, steps {1}, train_loss {2:.4f}, val_loss {3:.4f}, train_f1 {4:.4f}, val_f1 {5:.4f}, max_val_f1 {6:.4f}'\
-                        .format(
-                            cur_epochs,
-                            cur_train_steps,
-                            check_train_loss / check_train_steps,
-                            check_val_loss / check_val_steps,
-                            check_train_f1,
-                            check_val_f1,
-                            max_val_f1
-                            ))
+                    logger.info('epoch {0}, steps {1}, train_loss {2:.4f}, val_loss {3:.4f}, train_f1 {4:.4f}, val_f1 {5:.4f}, max_val_f1 {6:.4f}'.format(
+                        cur_epochs,
+                        cur_train_steps,
+                        check_train_loss / check_train_steps,
+                        check_val_loss / check_val_steps,
+                        check_train_f1,
+                        check_val_f1,
+                        max_val_f1
+                        ))
                     check_train_steps = 0
                     check_train_loss = 0
                     check_train_y = np.array([])
@@ -148,7 +148,8 @@ class Model(BaseModel):
             val_pred_y = np.concatenate((val_pred_y, batch_pred_y))
             val_y = np.concatenate((val_y, batch_y.to('cpu')))
         # eval
-        logger.info('model val analyse {}'.foramt(classification_report(val_y, val_pred_y)))
+        logger.info('model val analyse \n{}'.format(
+            classification_report(val_y.astype(np.int32), val_pred_y.astype(np.int32))))
 
 class BiGRU(nn.Module):
     def __init__(self, config):

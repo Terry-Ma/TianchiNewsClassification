@@ -32,8 +32,8 @@ if __name__ == '__main__':
     checkpoint_process('./checkpoint/{}'.format(args.checkpoint_dir))
     # train
     model = Model(config)
-    # model.train()
+    model.train()
     # # val analyse
     # model.val_analyse()
-    # submit
-    model.generate_submit()
+    # # submit
+    # model.generate_submit()

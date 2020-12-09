@@ -14,9 +14,9 @@ train:
   multi_gpu: 0
   batch_size: 128
   lr: 0.0003
-  train_steps: 5000
+  train_steps: 10000
   steps_per_check: 100
-  steps_per_checkpoint: 500
+  steps_per_checkpoint: 2000
   checkpoint_dir: 'RNN/'
 
 eval:
