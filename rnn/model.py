@@ -3,11 +3,12 @@ import logging
 import sys
 import numpy as np
 import os
+import pandas as pd
 sys.path.append('../')
 
 from torch import nn
 from torch.nn.functional import softmax
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, classification_report
 from base_model import BaseModel
 from utils import *
 
@@ -17,13 +18,21 @@ class Model(BaseModel):
     def __init__(self, config):
         super().__init__(config)
         # gpu device
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(self.config['train']['cuda_visible_devices'])
+        os.environ["CUDA_VISIBLE_DEVICES"] = self.config['train']['cuda_visible_devices']
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         logger.info('use device {}'.format(self.device))
         # init model
-        logger.info('model config {}'.format(self.config['model']))
         self.model = BiGRU(config).to(self.device)
         logger.info('init model {}'.format(self.model))
+        # load checkpoint
+        checkpoint_path = './checkpoint/{}'.format(self.config['model']['load_checkpoint'])
+        if self.config['model']['load_checkpoint'] != '' and os.path.exists(checkpoint_path):
+            self.model.load_state_dict(torch.load(checkpoint_path))
+            logger.info('load model from {}'.format(checkpoint_path))
+        # multi-gpu
+        if self.config['train']['multi_gpu'] and torch.cuda.device_count() > 1:
+            self.model = nn.DataParallel(self.model)
+            logger.info('will train on {} gpus'.format(torch.cuda.device_count()))
         # init loss - mean
         self.loss = nn.CrossEntropyLoss(reduction='mean')
         # init optimizer
@@ -77,18 +86,21 @@ class Model(BaseModel):
                             check_val_pred_y = np.concatenate((check_val_pred_y, np.array(batch_pred_y)))
                     # val f1
                     check_val_f1 = f1_score(check_val_y, check_val_pred_y, average='macro')
-                    logger.info('epoch {0}, steps {1}, train_loss {2:.4f}, val_loss {3:.4f}, train_f1 {4:.4f}, val_f1 {5:.4f}'.format(
-                        cur_epochs,
-                        cur_train_steps,
-                        check_train_loss / check_train_steps,
-                        check_val_loss / check_val_steps,
-                        check_train_f1,
-                        check_val_f1
-                        ))
                     # max f1 model
                     if check_val_f1 > max_val_f1:
                         max_val_f1 = check_val_f1
                         torch.save(self.model.state_dict(), './checkpoint/{}/best_model.pkl'.format(self.config['train']['checkpoint_dir']))
+                    # log
+                    logger.info('epoch {0}, steps {1}, train_loss {2:.4f}, val_loss {3:.4f}, train_f1 {4:.4f}, val_f1 {5:.4f}, max_val_f1 {6:.4f}'\
+                        .format(
+                            cur_epochs,
+                            cur_train_steps,
+                            check_train_loss / check_train_steps,
+                            check_val_loss / check_val_steps,
+                            check_train_f1,
+                            check_val_f1,
+                            max_val_f1
+                            ))
                     check_train_steps = 0
                     check_train_loss = 0
                     check_train_y = np.array([])
@@ -107,7 +119,23 @@ class Model(BaseModel):
             format(cur_epochs, self.config['train']['train_steps'], max_val_f1))
 
     def generate_submit(self):
-        pass
+        # predict
+        test_pred_y = np.array([])
+        for batch_X, _ in self.test_iter:
+            batch_X = batch_X.to(self.device)
+            batch_pred_y = self.model(batch_X)
+            batch_pred_y = batch_pred_y.argmax(dim=1).to('cpu')
+            test_pred_y = np.concatenate((test_pred_y, batch_pred_y))
+        # DataFrame
+        submit = pd.DataFrame(columns=['label'])
+        submit['label'] = test_pred_y
+        submit['label'] = submit['label'].astype('int')
+        # to csv
+        submit_path = '../submit/{}'.format(self.config['eval']['submit_file'])
+        submit.to_csv(submit_path, index=False)
+        logger.info('generate submit {}'.format(submit_path))
+    
+    def val_analyse(self):
 
 class BiGRU(nn.Module):
     def __init__(self, config):
@@ -120,7 +148,7 @@ class BiGRU(nn.Module):
     
     def forward(self, X, state_begin=None):
         embed_X = self.embedding(X).permute(1, 0, 2)
-        output, hidden_states = self.bigru(embed_X, state_begin)
+        output, _ = self.bigru(embed_X, state_begin)
         linear_input = torch.cat((output[-1, :, :self.config['model']['hidden_num']], \
             output[0, :, self.config['model']['hidden_num']:]), dim=1)
         output = self.linear(linear_input)

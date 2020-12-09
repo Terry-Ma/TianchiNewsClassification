@@ -1,1 +1,1 @@
-python main.py --cuda_visible_devices '1' --config_path './config.yml' --log_file 'embed_128_hidden_256_GRU.log' --checkpoint_dir 'embed_128_hidden_256_GRU/'
+python main.py --cuda_visible_devices '1' --config_path './config.yml' --load_checkpoint 'embed_128_hidden_256_GRU/best_model.pkl' --submit_file 'embed_128_hidden_256_GRU.csv' --is_demo 0

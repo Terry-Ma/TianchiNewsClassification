@@ -28,8 +28,15 @@ def generate_config(args):
     logger.info('load config from {}'.format(args.config_path))
     args_dict = vars(args)
     for key, value in args_dict.items():
-        if value and key != 'log_path':
-            config['train'][key] = value
+        if value:
+            find_k = False
+            for _, config_v in config.items():
+                if key in config_v:
+                    config_v[key] = value
+                    find_k = True
+                    break
+            if not find_k:
+                config['train'][key] = value
     logger.info('will use config {}'.format(config))
 
     return config

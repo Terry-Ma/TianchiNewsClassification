@@ -13,14 +13,16 @@ UNK = '<unk>'
 data_path = '~/mayunquan/TianchiNewsClassification/data'
 logger = logging.getLogger()
 
-def generate_train_val_iter(train_X, train_y, val_X, val_y, config):
+def generate_train_val_test_iter(train_X, train_y, val_X, val_y, test_X, config):
     train_dataset = torch.utils.data.TensorDataset(train_X, train_y)
     train_iter = torch.utils.data.DataLoader(train_dataset, batch_size=config['train']['batch_size'], shuffle=True)
     val_dataset = torch.utils.data.TensorDataset(val_X, val_y)
-    val_iter = torch.utils.data.DataLoader(val_dataset, batch_size=config['train']['batch_size'], shuffle=True)
-    logger.info('train iter & val iter generated')
+    val_iter = torch.utils.data.DataLoader(val_dataset, batch_size=config['train']['batch_size'])  # shuffle=False
+    test_dataset = torch.utils.data.TensorDataset(test_X, torch.zeros(test_X.shape[0]))
+    test_iter = torch.utils.data.DataLoader(test_dataset, batch_size=config['train']['batch_size'])
+    logger.info('train iter & val & test iter generated')
 
-    return train_iter, val_iter
+    return train_iter, val_iter, test_iter
 
 def generate_tensor(config):
     train_X, train_y, val_X, val_y, test_X = generate_train_val_test(config['preprocess']['is_demo'])

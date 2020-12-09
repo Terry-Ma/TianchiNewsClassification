@@ -3,16 +3,21 @@ preprocess:
   min_freq: 5
   is_demo: 0
 
-train:
-  cuda_visible_devices: '1'
-  batch_size: 128
-  optimizer: 'adam'
-  lr: 0.0003
-  train_steps: 5000
-  steps_per_check: 100
-  steps_per_checkpoint: 500
-
 model:
   embed_size: 128
   hidden_num: 256
   layer_num: 3
+  load_checkpoint: ''
+
+train:
+  cuda_visible_devices: '1'
+  multi_gpu: 0
+  batch_size: 128
+  lr: 0.0003
+  train_steps: 5000
+  steps_per_check: 100
+  steps_per_checkpoint: 500
+  checkpoint_dir: 'RNN/'
+
+eval:
+  submit_file: 'submit.csv'
