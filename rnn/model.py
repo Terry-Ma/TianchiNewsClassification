@@ -117,6 +117,8 @@ class Model(BaseModel):
             cur_epochs += 1 
         logger.info('training complete, training epochs {0}, steps {1}, max val f1 {2:.4f}'.\
             format(cur_epochs, self.config['train']['train_steps'], max_val_f1))
+        # val analyse
+        self.val_analyse()
 
     def generate_submit(self):
         # predict
@@ -136,6 +138,17 @@ class Model(BaseModel):
         logger.info('generate submit {}'.format(submit_path))
     
     def val_analyse(self):
+        # predict
+        val_y = np.array([])
+        val_pred_y = np.array([])
+        for batch_X, batch_y in self.val_iter:
+            batch_X = batch_X.to(self.device)
+            batch_pred_y = self.model(batch_X)
+            batch_pred_y = batch_pred_y.argmax(dim=1).to('cpu')
+            val_pred_y = np.concatenate((val_pred_y, batch_pred_y))
+            val_y = np.concatenate((val_y, batch_y.to('cpu')))
+        # eval
+        logger.info('model val analyse {}'.foramt(classification_report(val_y, val_pred_y)))
 
 class BiGRU(nn.Module):
     def __init__(self, config):
