@@ -1,1 +1,1 @@
-python main.py --cuda_visible_devices '1,2' --multi_gpu 1 --config_path './config.yml' --batch_size 256 --train_steps 10000 --log_file 'embed_128_hidden_256_batch_256_GRU.log' --checkpoint_dir 'embed_128_hidden_256_batch_256_GRU/'
+python main.py --cuda_visible_devices '1' --config_path './config.yml' --model_type 'GRU' --load_checkpoint 'embed_64_hidden_128_layer_3_GRU/best_model.pkl' --batch_size 128 --train_steps 10000 --log_file 'embed_64_hidden_128_layer_3_GRU_steps_10000_continue.log' --checkpoint_dir 'embed_64_hidden_128_layer_3_GRU_steps_10000_continue/'

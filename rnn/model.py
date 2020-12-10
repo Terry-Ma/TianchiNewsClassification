@@ -22,13 +22,18 @@ class Model(BaseModel):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         logger.info('use device {}'.format(self.device))
         # init model
-        self.model = BiGRU(config).to(self.device)
+        self.model = BiRNN(config).to(self.device)
         logger.info('init model \n{}'.format(self.model))
         # load checkpoint
-        checkpoint_path = './checkpoint/{}'.format(self.config['model']['load_checkpoint'])
-        if self.config['model']['load_checkpoint'] != '' and os.path.exists(checkpoint_path):
-            self.model.load_state_dict(torch.load(checkpoint_path))
-            logger.info('load model from {}'.format(checkpoint_path))
+        if self.config['model']['load_checkpoint'] != '':
+            logger.info('will load pretrain-model')
+            checkpoint_path = './checkpoint/{}'.format(self.config['model']['load_checkpoint'])
+            if os.path.exists(checkpoint_path):
+                self.model.load_state_dict(torch.load(checkpoint_path))
+                logger.info('load model from {}'.format(checkpoint_path))
+            else:
+                logger.error('checkpoint path {} not exists'.format(checkpoint_path))
+                raise Exception('checkpoint path {} not exists'.format(checkpoint_path))
         # multi-gpu
         if self.config['train']['multi_gpu'] and torch.cuda.device_count() > 1:
             self.model = nn.DataParallel(self.model)
@@ -40,10 +45,11 @@ class Model(BaseModel):
 
     def train(self):
         logger.info('start training')
-        cur_epochs = 0
-        cur_train_steps = 0
+        cur_epochs = 1
+        cur_train_steps = 1
         max_val_f1 = 0
-        while cur_train_steps < self.config['train']['train_steps']:
+        best_step = 1
+        while cur_train_steps <= self.config['train']['train_steps']:
             check_train_steps = 0
             check_train_loss = 0
             check_train_y = np.array([])
@@ -89,17 +95,19 @@ class Model(BaseModel):
                     # max f1 model
                     if check_val_f1 > max_val_f1:
                         max_val_f1 = check_val_f1
+                        best_step = cur_train_steps
                         torch.save(self.model.state_dict(), './checkpoint/{}/best_model.pkl'.format(
                             self.config['train']['checkpoint_dir']))
                     # log
-                    logger.info('epoch {0}, steps {1}, train_loss {2:.4f}, val_loss {3:.4f}, train_f1 {4:.4f}, val_f1 {5:.4f}, max_val_f1 {6:.4f}'.format(
+                    logger.info('epoch {0}, steps {1}, train_loss {2:.4f}, val_loss {3:.4f}, train_f1 {4:.4f}, val_f1 {5:.4f}, max_val_f1 {6:.4f}, best_step {7}'.format(
                         cur_epochs,
                         cur_train_steps,
                         check_train_loss / check_train_steps,
                         check_val_loss / check_val_steps,
                         check_train_f1,
                         check_val_f1,
-                        max_val_f1
+                        max_val_f1,
+                        best_step
                         ))
                     check_train_steps = 0
                     check_train_loss = 0
@@ -112,11 +120,11 @@ class Model(BaseModel):
                     torch.save(self.model.state_dict(), checkpoint_path)
                     logger.info('save checkpoints {}'.format(checkpoint_path))
                 cur_train_steps += 1
-                if cur_train_steps == self.config['train']['train_steps']:
+                if cur_train_steps > self.config['train']['train_steps']:
                     break   
             cur_epochs += 1 
-        logger.info('training complete, training epochs {0}, steps {1}, max val f1 {2:.4f}'.\
-            format(cur_epochs, self.config['train']['train_steps'], max_val_f1))
+        logger.info('training complete, training epochs {0}, steps {1}, max_val_f1 {2:.4f}, best_step {3}'.\
+            format(cur_epochs, self.config['train']['train_steps'], max_val_f1, best_step))
         # val analyse
         self.val_analyse()
 
@@ -151,18 +159,22 @@ class Model(BaseModel):
         logger.info('model val analyse \n{}'.format(
             classification_report(val_y.astype(np.int32), val_pred_y.astype(np.int32))))
 
-class BiGRU(nn.Module):
+class BiRNN(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
         self.embedding = nn.Embedding(config['model']['vocab_size'], config['model']['embed_size'])
-        self.bigru = nn.GRU(config['model']['embed_size'], config['model']['hidden_num'], \
-            config['model']['layer_num'], bidirectional=True)
+        if self.config['model']['model_type'] == 'GRU':
+            self.birnn = nn.GRU(config['model']['embed_size'], config['model']['hidden_num'], \
+                config['model']['layer_num'], bidirectional=True)
+        else:
+            self.birnn = nn.LSTM(config['model']['embed_size'], config['model']['hidden_num'], \
+                config['model']['layer_num'], bidirectional=True)
         self.linear = nn.Linear(2 * config['model']['hidden_num'], config['model']['type_num'])
     
-    def forward(self, X, state_begin=None):
+    def forward(self, X):
         embed_X = self.embedding(X).permute(1, 0, 2)
-        output, _ = self.bigru(embed_X, state_begin)
+        output, _ = self.birnn(embed_X)
         linear_input = torch.cat((output[-1, :, :self.config['model']['hidden_num']], \
             output[0, :, self.config['model']['hidden_num']:]), dim=1)
         output = self.linear(linear_input)

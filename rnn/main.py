@@ -15,6 +15,7 @@ if __name__ == '__main__':
     parser.add_argument('--config_path', type=str, default='./config.yml')
     parser.add_argument('--cuda_visible_devices', type=str)
     parser.add_argument('--multi_gpu', type=int)
+    parser.add_argument('--model_type', type=str)
     parser.add_argument('--load_checkpoint', type=str)
     parser.add_argument('--batch_size', type=int)
     parser.add_argument('--lr', type=float)

@@ -4,8 +4,9 @@ preprocess:
   is_demo: 0
 
 model:
-  embed_size: 128
-  hidden_num: 256
+  model_type: 'GRU'
+  embed_size: 64
+  hidden_num: 128
   layer_num: 3
   load_checkpoint: ''
 
