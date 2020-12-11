@@ -14,3 +14,5 @@ fasttext/fasttext*
 
 */checkpoint/*
 !*/checkpoint/.gitkeep
+
+word2vec/*.wv

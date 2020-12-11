@@ -1,10 +1,10 @@
 import pandas as pd
 import random
 
-from gensim.models import Word2Vec
+from gensim.models import Word2Vec, KeyedVectors
 
 data_path = '../data/'
-save_path = './skip_gram_vectors'
+save_path = './skip_gram.wv'
 
 class SentencesGenerator:
     def __init__(self):
@@ -18,15 +18,28 @@ class SentencesGenerator:
         for index in indexs:
             yield self.sentences[index].split()
 
-if __name__ == '__main__':
-    sentences_generator = SentencesGenerator()
+def train_skipgram(sentences_generator):
     model = Word2Vec(
         sentences=sentences_generator,
         size=128,
         window=5,
         min_count=5,
         sg=1,  # skip-gram
-        iter=2  # epoch
+        iter=20,  # epoch
+        workers=8
         )
     word_vectors = model.wv
     word_vectors.save(save_path)
+
+def load_skipgram():
+    sk_wv = KeyedVectors.load(save_path, mmap='r')
+    print(type(sk_wv))
+    print(sk_wv['3659'])
+    # print(sk_wv['myq'])   # raise Exception
+    print('myq' in sk_wv)
+    print('0' in sk_wv)
+
+if __name__ == '__main__':
+    # sentences_generator = SentencesGenerator()
+    # train(sentences_generator)
+    load_skipgram()

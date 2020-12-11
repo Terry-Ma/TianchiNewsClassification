@@ -10,6 +10,7 @@ from torch import nn
 from torch.nn.functional import softmax
 from sklearn.metrics import f1_score, classification_report
 from base_model import BaseModel
+from torch.nn.functional import softmax
 from utils import *
 
 logger = logging.getLogger()
@@ -17,31 +18,7 @@ logger = logging.getLogger()
 class Model(BaseModel):
     def __init__(self, config):
         super().__init__(config)
-        # gpu device
-        os.environ['CUDA_VISIBLE_DEVICES'] = self.config['train']['cuda_visible_devices']
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        logger.info('use device {}'.format(self.device))
-        # init model
-        self.model = BiRNN(config).to(self.device)
-        logger.info('init model \n{}'.format(self.model))
-        # load checkpoint
-        if self.config['model']['load_checkpoint'] != '':
-            logger.info('will load pretrain-model')
-            checkpoint_path = './checkpoint/{}'.format(self.config['model']['load_checkpoint'])
-            if os.path.exists(checkpoint_path):
-                self.model.load_state_dict(torch.load(checkpoint_path))
-                logger.info('load model from {}'.format(checkpoint_path))
-            else:
-                logger.error('checkpoint path {} not exists'.format(checkpoint_path))
-                raise Exception('checkpoint path {} not exists'.format(checkpoint_path))
-        # multi-gpu
-        if self.config['train']['multi_gpu'] and torch.cuda.device_count() > 1:
-            self.model = nn.DataParallel(self.model)
-            logger.info('will train on {} gpus'.format(torch.cuda.device_count()))
-        # init loss - mean
-        self.loss = nn.CrossEntropyLoss(reduction='mean')
-        # init optimizer
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.config['train']['lr'])
+        self.init(BiRNN)
 
     def train(self):
         logger.info('start training')
@@ -72,6 +49,7 @@ class Model(BaseModel):
                 check_train_pred_y = np.concatenate((check_train_pred_y, np.array(batch_pred_y)))
                 # check & val step
                 if cur_train_steps > 0 and cur_train_steps % self.config['train']['steps_per_check'] == 0:
+                    self.model.eval()    # dropout...
                     check_val_loss = 0
                     check_val_steps = 0
                     check_val_y = np.array([])
@@ -113,6 +91,7 @@ class Model(BaseModel):
                     check_train_loss = 0
                     check_train_y = np.array([])
                     check_train_pred_y = np.array([])
+                    self.model.train()    # dropout...
                 # checkpoint
                 if cur_train_steps > 0 and cur_train_steps % self.config['train']['steps_per_checkpoint'] == 0:
                     checkpoint_path = './checkpoint/{}/checkpoint_steps_{}.pkl'.\
@@ -131,11 +110,14 @@ class Model(BaseModel):
     def generate_submit(self):
         # predict
         test_pred_y = np.array([])
-        for batch_X, _ in self.test_iter:
-            batch_X = batch_X.to(self.device)
-            batch_pred_y = self.model(batch_X)
-            batch_pred_y = batch_pred_y.argmax(dim=1).to('cpu')
-            test_pred_y = np.concatenate((test_pred_y, batch_pred_y))
+        with torch.no_grad():
+            self.model.eval()    # dropout...
+            for batch_X, _ in self.test_iter:
+                batch_X = batch_X.to(self.device)
+                batch_pred_y = self.model(batch_X)
+                batch_pred_y = batch_pred_y.argmax(dim=1).to('cpu')
+                test_pred_y = np.concatenate((test_pred_y, batch_pred_y))
+            self.model.train()    # dropout...
         # DataFrame
         submit = pd.DataFrame(columns=['label'])
         submit['label'] = test_pred_y
@@ -149,12 +131,15 @@ class Model(BaseModel):
         # predict
         val_y = np.array([])
         val_pred_y = np.array([])
-        for batch_X, batch_y in self.val_iter:
-            batch_X = batch_X.to(self.device)
-            batch_pred_y = self.model(batch_X)
-            batch_pred_y = batch_pred_y.argmax(dim=1).to('cpu')
-            val_pred_y = np.concatenate((val_pred_y, batch_pred_y))
-            val_y = np.concatenate((val_y, batch_y.to('cpu')))
+        with torch.no_grad():
+            self.model.eval()    # dropout...
+            for batch_X, batch_y in self.val_iter:
+                batch_X = batch_X.to(self.device)
+                batch_pred_y = self.model(batch_X)
+                batch_pred_y = batch_pred_y.argmax(dim=1).to('cpu')
+                val_pred_y = np.concatenate((val_pred_y, batch_pred_y))
+                val_y = np.concatenate((val_y, batch_y.to('cpu')))
+            self.model.train()    # dropout...
         # eval
         logger.info('model val analyse \n{}'.format(
             classification_report(val_y.astype(np.int32), val_pred_y.astype(np.int32))))
@@ -165,18 +150,55 @@ class BiRNN(nn.Module):
         self.config = config
         self.embedding = nn.Embedding(config['model']['vocab_size'], config['model']['embed_size'])
         if self.config['model']['model_type'] == 'GRU':
-            self.birnn = nn.GRU(config['model']['embed_size'], config['model']['hidden_num'], \
-                config['model']['layer_num'], bidirectional=True)
+            self.birnn = nn.GRU(
+                input_size=config['model']['embed_size'],
+                hidden_size=config['model']['hidden_num'],
+                num_layers=config['model']['layer_num'],
+                dropout=self.config['model']['dropout'],
+                bidirectional=True
+                )
         else:
-            self.birnn = nn.LSTM(config['model']['embed_size'], config['model']['hidden_num'], \
-                config['model']['layer_num'], bidirectional=True)
+            self.birnn = nn.LSTM(
+                input_size=config['model']['embed_size'],
+                hidden_size=config['model']['hidden_num'],
+                num_layers=config['model']['layer_num'],
+                dropout=self.config['model']['dropout'],
+                bidirectional=True
+                )
+        if self.config['model']['use_attention']:
+            self.attention = Attention(2 * self.config['model']['hidden_num'], self.config['model']['attention_size'])
         self.linear = nn.Linear(2 * config['model']['hidden_num'], config['model']['type_num'])
     
     def forward(self, X):
         embed_X = self.embedding(X).permute(1, 0, 2)
         output, _ = self.birnn(embed_X)
-        linear_input = torch.cat((output[-1, :, :self.config['model']['hidden_num']], \
-            output[0, :, self.config['model']['hidden_num']:]), dim=1)
+        if self.config['model']['use_attention']:
+            linear_input = self.attention(output.permute(1, 0, 2))
+        else:
+            linear_input = torch.cat((output[-1, :, :self.config['model']['hidden_num']], \
+                output[0, :, self.config['model']['hidden_num']:]), dim=1)
         output = self.linear(linear_input)
+
+        return output
+
+class Attention(nn.Module):
+    def __init__(self, input_size, attention_size):
+        super().__init__()
+        self.attention = nn.Sequential(
+            nn.Linear(input_size, attention_size),
+            nn.Tanh(),
+            nn.Linear(attention_size, 1)
+        )
+    
+    def forward(self, X):
+        '''
+        Args:
+            X: (batch_size, seq_len, input_size)
+        Returns:
+            output: (batch_size, input_size)
+        '''
+        weight = self.attention(X)
+        weight = softmax(weight, dim=1)
+        output = (X * weight).sum(dim=1).squeeze()
 
         return output
