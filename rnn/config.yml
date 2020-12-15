@@ -4,25 +4,26 @@ preprocess:
   is_demo: 0
 
 model:
-  model_type: 'GRU'
+  model_type: 'GRU'    # 'GRU' or 'LSTM'
   embed_size: 128
   hidden_num: 256
   layer_num: 3
   dropout: 0.5
-  use_attention: 1
+  agg_function: ''    # 'mean' & 'max' & 'attention' or ''
   attention_size: 128
   load_checkpoint: ''
-  load_wv_path: ''
+  load_wv_path: '../word2vec/skip_gram.wv'
 
 train:
   cuda_visible_devices: '0'
   multi_gpu: 0
   batch_size: 128
   lr: 0.0003
+  weight_decay: 0.0    # torch L2
   train_steps: 10000
   steps_per_check: 100
   steps_per_checkpoint: 2000
   checkpoint_dir: 'RNN/'
 
-eval:
+eval: 
   submit_file: 'submit.csv'

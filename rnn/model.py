@@ -74,8 +74,12 @@ class Model(BaseModel):
                     if check_val_f1 > max_val_f1:
                         max_val_f1 = check_val_f1
                         best_step = cur_train_steps
-                        torch.save(self.model.state_dict(), './checkpoint/{}/best_model.pkl'.format(
-                            self.config['train']['checkpoint_dir']))
+                        if self.config['train']['multi_gpu'] and torch.cuda.device_count() > 1:  # DataParallel's state_dict is in module
+                            torch.save(self.model.module.state_dict(), './checkpoint/{}/best_model.pkl'.format(
+                                self.config['train']['checkpoint_dir']))
+                        else:
+                            torch.save(self.model.state_dict(), './checkpoint/{}/best_model.pkl'.format(
+                                self.config['train']['checkpoint_dir']))
                     # log
                     logger.info('epoch {0}, steps {1}, train_loss {2:.4f}, val_loss {3:.4f}, train_f1 {4:.4f}, val_f1 {5:.4f}, max_val_f1 {6:.4f}, best_step {7}'.format(
                         cur_epochs,
@@ -96,7 +100,10 @@ class Model(BaseModel):
                 if cur_train_steps > 0 and cur_train_steps % self.config['train']['steps_per_checkpoint'] == 0:
                     checkpoint_path = './checkpoint/{}/checkpoint_steps_{}.pkl'.\
                         format(self.config['train']['checkpoint_dir'], cur_train_steps)
-                    torch.save(self.model.state_dict(), checkpoint_path)
+                    if self.config['train']['multi_gpu'] and torch.cuda.device_count() > 1:  # DataParallel's state_dict is in module
+                        torch.save(self.model.module.state_dict(), checkpoint_path)
+                    else:
+                        torch.save(self.model.state_dict(), checkpoint_path)
                     logger.info('save checkpoints {}'.format(checkpoint_path))
                 cur_train_steps += 1
                 if cur_train_steps > self.config['train']['train_steps']:
@@ -165,15 +172,23 @@ class BiRNN(nn.Module):
                 dropout=self.config['model']['dropout'],
                 bidirectional=True
                 )
-        if self.config['model']['use_attention']:
+        if self.config['model']['agg_function'] == 'attention':
             self.attention = Attention(2 * self.config['model']['hidden_num'], self.config['model']['attention_size'])
+        elif self.config['model']['agg_function'] == 'max':
+            self.max_pool = torch.nn.MaxPool1d(self.config['preprocess']['max_len'])
+        elif self.config['model']['agg_function'] == 'mean':
+            self.mean_pool = torch.nn.AvgPool1d(self.config['preprocess']['max_len'])
         self.linear = nn.Linear(2 * config['model']['hidden_num'], config['model']['type_num'])
     
     def forward(self, X):
         embed_X = self.embedding(X).permute(1, 0, 2)
         output, _ = self.birnn(embed_X)
-        if self.config['model']['use_attention']:
+        if self.config['model']['agg_function'] == 'attention':
             linear_input = self.attention(output.permute(1, 0, 2))
+        elif self.config['model']['agg_function'] == 'max':
+            linear_input = self.max_pool(output.permute(1, 2, 0)).squeeze()
+        elif self.config['model']['agg_function'] == 'mean':
+            linear_input = self.mean_pool(output.permute(1, 2, 0)).squeeze()
         else:
             linear_input = torch.cat((output[-1, :, :self.config['model']['hidden_num']], \
                 output[0, :, self.config['model']['hidden_num']:]), dim=1)
