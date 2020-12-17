@@ -31,7 +31,7 @@ def train_skipgram(sentences_generator):
     word_vectors = model.wv
     word_vectors.save(save_path)
 
-def load_skipgram():
+def load_test():
     sk_wv = KeyedVectors.load(save_path, mmap='r')
     print(type(sk_wv))
     print(sk_wv['3659'])
@@ -42,4 +42,4 @@ def load_skipgram():
 if __name__ == '__main__':
     # sentences_generator = SentencesGenerator()
     # train(sentences_generator)
-    load_skipgram()
+    load_test()

@@ -38,7 +38,7 @@ def val_metric(val_X, val_y):
     f1 = f1_score(val_y, val_pred_y, average='macro')
 
     return f1
-
+    
 def generate_submit(test_X, name):
     model = fasttext.load_model(model_path)
     test_pred_res = model.predict(list(test_X))

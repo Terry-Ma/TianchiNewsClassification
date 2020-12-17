@@ -81,7 +81,7 @@ class Model(BaseModel):
                             torch.save(self.model.state_dict(), './checkpoint/{}/best_model.pkl'.format(
                                 self.config['train']['checkpoint_dir']))
                     # log
-                    logger.info('epoch {0}, steps {1}, train_loss {2:.4f}, val_loss {3:.4f}, train_f1 {4:.4f}, val_f1 {5:.4f}, max_val_f1 {6:.4f}, best_step {7}'.format(
+                    logger.info('epoch {0}, steps {1}, train_loss {2:.4f}, val_loss {3:.4f}, train_f1 {4:.4f}, val_f1 {5:.4f}, max_val_f1 {6:.4f}, best_step {7}, lr {8}'.format(
                         cur_epochs,
                         cur_train_steps,
                         check_train_loss / check_train_steps,
@@ -89,12 +89,18 @@ class Model(BaseModel):
                         check_train_f1,
                         check_val_f1,
                         max_val_f1,
-                        best_step
+                        best_step,
+                        self.optimizer.param_groups[0]['lr']
                         ))
                     check_train_steps = 0
                     check_train_loss = 0
                     check_train_y = np.array([])
                     check_train_pred_y = np.array([])
+                    # lr scheduler
+                    if self.config['train']['lr_scheduler'] == 'step':
+                        self.lr_scheduler.step()
+                    elif self.config['train']['lr_scheduler'] == 'metric':
+                        self.lr_scheduler.step(check_val_loss / check_val_steps)
                     self.model.train()    # dropout...
                 # checkpoint
                 if cur_train_steps > 0 and cur_train_steps % self.config['train']['steps_per_checkpoint'] == 0:

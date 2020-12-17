@@ -38,8 +38,36 @@ class BaseModel:
             logger.info('will train on {} gpus'.format(torch.cuda.device_count()))
         # init loss - mean
         self.loss = nn.CrossEntropyLoss(reduction='mean')
+        logger.info('init loss \n{}'.format(self.loss))
         # init optimizer
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.config['train']['lr'])
+        if self.config['train']['optimizer'] == 'Adam':
+            self.optimizer = torch.optim.Adam(
+                self.model.parameters(),
+                lr=self.config['train']['lr'],
+                weight_decay=self.config['train']['weight_decay']
+                )
+        else:
+            self.optimizer = torch.optim.SGD(
+                self.model.parameters(),
+                lr=self.config['train']['lr'],
+                weight_decay=self.config['train']['weight_decay'],
+                momentum=self.config['train']['momentum']
+                )
+        logger.info('init optimizer\n {}'.format(self.optimizer))
+        # init lr scheduler
+        if self.config['train']['lr_scheduler'] == 'step':
+            self.lr_scheduler = torch.optim.lr_scheduler.StepLR(
+                self.optimizer,
+                step_size=self.config['train']['lr_step_size'],
+                gamma=self.config['train']['lr_step_gamma']
+                )
+        elif self.config['train']['lr_scheduler'] == 'metric':
+            self.lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                self.optimizer,
+                mode='min',   # val_loss
+                factor=self.config['train']['lr_factor'],
+                patience=self.config['train']['lr_patience']
+                )
 
     def load_wv_as_embedding(self):
         logger.info('will load pretrain-embedding')
