@@ -25,11 +25,7 @@ if __name__ == '__main__':
     # config
     config = generate_config(args)
     # checkpoint
-    checkpoint_process('./checkpoint/{}'.format(args.checkpoint_dir))
+    checkpoint_process('./checkpoint/{}'.format(config['train']['checkpoint_dir']))
     # train
     model = Model(config)
     model.train()
-    # # val analyse
-    # model.val_analyse()
-    # # submit
-    # model.generate_submit()

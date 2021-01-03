@@ -1,9 +1,11 @@
 preprocess:
   max_len: 1024
   min_freq: 5
+  vocab_path: '../data/rnn.vocab'
   is_demo: 0
 
 model:
+  model_name: 'rnn'
   model_type: 'GRU'    # 'GRU' or 'LSTM'
   embed_size: 128
   hidden_num: 256
@@ -15,9 +17,8 @@ model:
   load_wv_path: '../word2vec/skip_gram.wv'
 
 train:
-  cuda_visible_devices: '0'
   multi_gpu: 0
-  batch_size: 128
+  batch_size: 32
   optimizer: 'Adam'   # Adam & SGD
   lr: 0.0003
   momentum: 0.0

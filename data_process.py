@@ -3,6 +3,7 @@ import torch
 import numpy as np
 import logging
 import yaml
+import os
 
 from sklearn.model_selection import train_test_split
 from collections import defaultdict, Counter
@@ -10,6 +11,7 @@ from torchtext.vocab import Vocab
 
 PAD = '<pad>'
 UNK = '<unk>'
+CLS = '<cls>'
 data_path = '~/mayunquan/TianchiNewsClassification/data'
 logger = logging.getLogger()
 
@@ -27,7 +29,9 @@ def generate_train_val_test_iter(train_X, train_y, val_X, val_y, test_X, config)
 def generate_tensor(config):
     train_X, train_y, val_X, val_y, test_X = generate_train_val_test(config['preprocess']['is_demo'])
     train_X, train_y, val_X, val_y, test_X, vocab = data2tensor(
-        train_X, train_y, val_X, val_y, test_X, config['preprocess']['max_len'], config['preprocess']['min_freq'])
+        train_X, train_y, val_X, val_y, test_X, config['preprocess']['max_len'], 
+        config['preprocess']['min_freq'], config['model']['model_name'] == 'bert',
+        config['preprocess']['vocab_path'])
     
     return train_X, train_y, val_X, val_y, test_X, vocab
 
@@ -48,16 +52,16 @@ def generate_train_val_test(is_demo):
 
     return train_X, train_y, val_X, val_y, test_X
 
-def data2tensor(train_X, train_y, val_X, val_y, test_X, max_len, min_freq):
+def data2tensor(train_X, train_y, val_X, val_y, test_X, max_len, min_freq, is_bert, vocab_path):
     # generate y
     train_y = torch.tensor(train_y)
     val_y = torch.tensor(val_y)
     # X truncated
-    train_X = truncated(train_X, max_len, PAD)
-    val_X = truncated(val_X, max_len, PAD)
-    test_X = truncated(test_X, max_len, PAD)
+    train_X = truncated(train_X, max_len, is_bert)
+    val_X = truncated(val_X, max_len, is_bert)
+    test_X = truncated(test_X, max_len, is_bert)
     # generate vocab
-    vocab = generate_vocab(train_X, min_freq)
+    vocab = generate_vocab(train_X, min_freq, vocab_path)
     # transform
     train_X = train_X.apply(lambda x: [vocab.stoi[word] for word in x])
     val_X = val_X.apply(lambda x: [vocab.stoi[word] for word in x])
@@ -71,21 +75,31 @@ def data2tensor(train_X, train_y, val_X, val_y, test_X, max_len, min_freq):
 
     return train_X, train_y, val_X, val_y, test_X, vocab
 
-def truncated(data, max_len, PAD):
+def truncated(data, max_len, is_bert):
     data = data.apply(lambda x: x.split())
-    data = data.apply(lambda x: x[:max_len] if len(x) >= max_len else \
-        x + [PAD] * (max_len - len(x)))
+    if not is_bert:
+        data = data.apply(lambda x: x[:max_len] if len(x) >= max_len else \
+            x + [PAD] * (max_len - len(x)))
+    else:
+        data = data.apply(lambda x: [CLS] + x[:max_len - 1] if len(x) >= max_len - 1 else \
+            [CLS] + x + [PAD] * (max_len - len(x) - 1))
     
     return data
 
-def generate_vocab(train_X, min_freq):
-    word2freq = defaultdict(int)
-    for words in train_X:
-        for word in words:
-            word2freq[word] += 1
-    if PAD in word2freq:
-        del word2freq[PAD]
-    vocab = Vocab(Counter(word2freq), min_freq=min_freq, specials=[UNK, PAD])
+def generate_vocab(train_X, min_freq, vocab_path):
+    if os.path.exists(vocab_path):
+        vocab = torch.load(vocab_path)
+        logger.info('load existing vocab {}'.format(vocab_path))
+    else:
+        word2freq = defaultdict(int)
+        for words in train_X:
+            for word in words:
+                word2freq[word] += 1
+        if PAD in word2freq:
+            del word2freq[PAD]
+        vocab = Vocab(Counter(word2freq), min_freq=min_freq, specials=[UNK, PAD])
+        torch.save(vocab, vocab_path)
+        logger.info('generate vocab and save: {}'.format(vocab_path))
 
     return vocab
 
@@ -98,4 +112,4 @@ if __name__ == '__main__':
     logger.addHandler(stream_handler)
     logger.setLevel(logging.DEBUG)
     train_X, train_y, val_X, val_y, test_X, vocab = generate_tensor(config)
-    train_iter, val_iter = generate_train_val_iter(train_X, train_y, val_X, val_y, config)
+    train_iter, val_iter = generate_train_val_test_iter(train_X, train_y, val_X, val_y, test_X, config)

@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES='2,3' python ../main.py --multi_gpu 1 --warmup_steps 0 --lr 0.0003
