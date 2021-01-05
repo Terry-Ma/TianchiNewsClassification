@@ -73,8 +73,10 @@ class Model:
             self.load_checkpoint()
         # init writer
         tb_writer = SummaryWriter(log_dir=self.config['train']['tb_path'])
+        # total steps
+        total_steps = self.cur_train_steps + self.config['train']['train_steps']
         logger.info('start training')
-        while self.cur_train_steps <= self.config['train']['train_steps']:
+        while self.cur_train_steps <= total_steps:
             check_train_steps = 0
             check_train_loss = 0
             check_train_y = np.array([])
@@ -136,10 +138,10 @@ class Model:
                         self.best_step,
                         self.optimizer.lr
                         ))
-                    tb_writer.add_scalar('Loss/train_loss', check_train_loss / check_train_steps, cur_train_steps)
-                    tb_writer.add_scalar('Loss/val_loss', check_val_loss / check_val_steps, cur_train_steps)
-                    tb_writer.add_scalar('F1_score/train_f1', check_train_f1, cur_train_steps)
-                    tb_writer.add_scalar('F1_score/val_f1', check_val_f1, cur_train_steps)
+                    tb_writer.add_scalar('Loss/train_loss', check_train_loss / check_train_steps, self.cur_train_steps)
+                    tb_writer.add_scalar('Loss/val_loss', check_val_loss / check_val_steps, self.cur_train_steps)
+                    tb_writer.add_scalar('F1_score/train_f1', check_train_f1, self.cur_train_steps)
+                    tb_writer.add_scalar('F1_score/val_f1', check_val_f1, self.cur_train_steps)
                     # init
                     check_train_steps = 0
                     check_train_loss = 0
@@ -171,8 +173,6 @@ class Model:
             'max_val_f1': self.max_val_f1,
             'best_step': self.best_step
             }
-        for k, v in self.optimizer.state_dict().items():
-            cpt_dict[k] = v
         torch.save(cpt_dict, cpt_path)
         logger.info('save checkpoints {}'.format(cpt_path))
 
@@ -183,7 +183,6 @@ class Model:
             # load checkpoint
             cpt_dict = torch.load(cpt_path)
             self.model.load_state_dict(cpt_dict['model'])
-            self.optimizer.load_state_dict(cpt_dict)
             self.cur_train_steps = cpt_dict['cur_train_steps'] + 1
             self.cur_epochs = cpt_dict['cur_epochs'] + 1
             self.max_val_f1 = cpt_dict['max_val_f1']
@@ -227,4 +226,4 @@ class Model:
         submit['label'] = submit['label'].astype('int')
         # to csv
         submit.to_csv(self.config['train']['submit_path'], index=False)
-        logger.info('generate submit {}'.format(submit_path))
+        logger.info('generate submit {}'.format(self.config['train']['submit_path']))
