@@ -16,9 +16,9 @@ train:
   lr: 0.00001
   weight_decay: 0.01
   warmup_steps: 10000
-  train_steps: 250000
+  train_steps: 80000
   steps_per_check: 100
-  steps_per_checkpoint: 50000
+  steps_per_checkpoint: 80000
 
 bert_model:
   max_position_embeddings: 1024

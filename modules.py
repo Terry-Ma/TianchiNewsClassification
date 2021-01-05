@@ -168,18 +168,6 @@ class BaseOptimizer:
     def zero_grad(self):
         self.optimizer.zero_grad()
 
-    def state_dict(self):
-        cpt_dict = {'optimizer': self.optimizer.state_dict()}
-        if self.config['train'].get('lr_scheduler') == 'step':
-            cpt_dict['lr_scheduler'] = self.lr_scheduler.state_dict()
-
-        return cpt_dict
-    
-    def load_state_dict(self, cpt_dict):
-        self.optimizer.load_state_dict(cpt_dict['optimizer'])
-        if self.config['train'].get('lr_scheduler') == 'step':
-            self.lr_scheduler.load_state_dict(cpt_dict['lr_scheduler'])
-
 
 class BertOptimizer:
     def __init__(self, config, model):
@@ -210,15 +198,3 @@ class BertOptimizer:
 
     def zero_grad(self):
         self.optimizer.zero_grad()
-
-    def state_dict(self):
-        cpt_dict = {
-            'optimizer': self.optimizer.state_dict(),
-            'lr_scheduler': self.lr_scheduler.state_dict()
-            }
-
-        return cpt_dict
-    
-    def load_state_dict(self, cpt_dict):
-        self.optimizer.load_state_dict(cpt_dict['optimizer'])
-        self.lr_scheduler.load_state_dict(cpt_dict['lr_scheduler'])
