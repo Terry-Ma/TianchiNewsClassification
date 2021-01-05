@@ -12,8 +12,7 @@ logger = logging.getLogger()
 if __name__ == '__main__':
     # parse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config_path', type=str, default='./config.yml')
-    parser.add_argument('--log_file', type=str, default='train.log')
+    parser.add_argument('--experiment_name', type=str, default='model')
     with open('./config.yml') as f:
         config_format = yaml.load(f, Loader=yaml.FullLoader)
     for _, param_kv in config_format.items():
@@ -21,11 +20,11 @@ if __name__ == '__main__':
             parser.add_argument('--{}'.format(param_k), type=type(param_v))
     args = parser.parse_args()
     # log
-    set_logger('./train_log/{}'.format(args.log_file))
+    set_logger('./train_log/{}.log'.format(args.experiment_name))
     # config
     config = generate_config(args)
     # checkpoint
-    checkpoint_process('./checkpoint/{}'.format(config['train']['checkpoint_dir']))
+    checkpoint_process(config['train']['checkpoint_path'])
     # train
     model = Model(config)
     model.train()

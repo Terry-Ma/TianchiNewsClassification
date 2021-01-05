@@ -6,6 +6,7 @@ from torch.nn.functional import softmax
 from utils import *
 from transformers import (
     BertModel,
+    BertForSequenceClassification,
     AdamW,
     BertConfig,
     get_linear_schedule_with_warmup
@@ -124,7 +125,7 @@ class Bert(nn.Module):
         )
     
     def forward(self, X):
-        bert_output = self.bert_model(input_ids=X)
+        bert_output = self.bert_model(input_ids=X[:, 0, :], attention_mask=X[:, 1, :])
         pool_output = bert_output.pooler_output   # (batch_size, hidden_num)
         output = self.classifier(pool_output)
 
@@ -183,7 +184,18 @@ class BaseOptimizer:
 class BertOptimizer:
     def __init__(self, config, model):
         self.config = config
-        self.optimizer = AdamW(model.parameters(), lr=config['train']['lr'])
+        no_decay = ['bias', 'LayerNorm.weight']
+        optimizer_grouped_parameters = [
+            {
+                'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)], 
+                'weight_decay': config['train']['weight_decay']
+            },
+            {
+                'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 
+                'weight_decay': 0.0
+            }
+        ]
+        self.optimizer = AdamW(optimizer_grouped_parameters, lr=config['train']['lr'])
         self.lr_scheduler = get_linear_schedule_with_warmup(
             self.optimizer,
             self.config['train']['warmup_steps'],

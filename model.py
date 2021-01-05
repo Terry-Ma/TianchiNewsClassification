@@ -6,6 +6,7 @@ from data_process import *
 from torch import nn
 from modules import *
 from sklearn.metrics import f1_score, classification_report
+from torch.utils.tensorboard import SummaryWriter
 
 name2model = {
     'rnn': BiRNN,
@@ -68,8 +69,10 @@ class Model:
         self.max_val_f1 = 0
         self.best_step = 1
         # load checkpoint
-        if self.config['model']['load_checkpoint'] != '':
+        if self.config['model']['load_checkpoint_path'] != '':
             self.load_checkpoint()
+        # init writer
+        tb_writer = SummaryWriter(log_dir=self.config['train']['tb_path'])
         logger.info('start training')
         while self.cur_train_steps <= self.config['train']['train_steps']:
             check_train_steps = 0
@@ -115,6 +118,12 @@ class Model:
                             check_val_pred_y = np.concatenate((check_val_pred_y, np.array(batch_pred_y)))
                     # val f1
                     check_val_f1 = f1_score(check_val_y, check_val_pred_y, average='macro')
+                    # max f1 model
+                    if check_val_f1 > self.max_val_f1:
+                        self.max_val_f1 = check_val_f1
+                        self.best_step = self.cur_train_steps
+                        cpt_path = '{}/best_model.cpt'.format(self.config['train']['checkpoint_path'])
+                        self.save_checkpoint(cpt_path)
                     # log
                     logger.info('epoch {0}, steps {1}, train_loss {2:.4f}, val_loss {3:.4f}, train_f1 {4:.4f}, val_f1 {5:.4f}, max_val_f1 {6:.4f}, best_step {7}, lr {8}'.format(
                         self.cur_epochs,
@@ -127,12 +136,11 @@ class Model:
                         self.best_step,
                         self.optimizer.lr
                         ))
-                    # max f1 model
-                    if check_val_f1 > self.max_val_f1:
-                        self.max_val_f1 = check_val_f1
-                        self.best_step = self.cur_train_steps
-                        cpt_path = './checkpoint/{}/best_model.cpt'.format(self.config['train']['checkpoint_dir'])
-                        self.save_checkpoint(cpt_path)
+                    tb_writer.add_scalar('Loss/train_loss', check_train_loss / check_train_steps, cur_train_steps)
+                    tb_writer.add_scalar('Loss/val_loss', check_val_loss / check_val_steps, cur_train_steps)
+                    tb_writer.add_scalar('F1_score/train_f1', check_train_f1, cur_train_steps)
+                    tb_writer.add_scalar('F1_score/val_f1', check_val_f1, cur_train_steps)
+                    # init
                     check_train_steps = 0
                     check_train_loss = 0
                     check_train_y = np.array([])
@@ -140,8 +148,7 @@ class Model:
                     self.model.train()    # dropout...
                 # checkpoint
                 if self.cur_train_steps > 0 and self.cur_train_steps % self.config['train']['steps_per_checkpoint'] == 0:
-                    cpt_path = './checkpoint/{}/checkpoint_steps_{}.cpt'.\
-                        format(self.config['train']['checkpoint_dir'], self.cur_train_steps)
+                    cpt_path = '{}/checkpoint_steps_{}.cpt'.format(self.config['train']['checkpoint_path'], self.cur_train_steps)
                     self.save_checkpoint(cpt_path)
                 self.cur_train_steps += 1
                 if self.cur_train_steps > self.config['train']['train_steps']:
@@ -149,6 +156,7 @@ class Model:
             self.cur_epochs += 1 
         logger.info('training complete, training epochs {0}, steps {1}, max_val_f1 {2:.4f}, best_step {3}'.\
             format(self.cur_epochs, self.config['train']['train_steps'], self.max_val_f1, self.best_step))
+        tb_writer.close()
         # val analyse
         self.val_analyse()
         # generate submit
@@ -170,7 +178,7 @@ class Model:
 
     def load_checkpoint(self):
         logger.info('will load checkpoint')
-        cpt_path = './checkpoint/{}'.format(self.config['model']['load_checkpoint'])
+        cpt_path = self.config['model']['load_checkpoint_path']
         if os.path.exists(cpt_path):
             # load checkpoint
             cpt_dict = torch.load(cpt_path)
@@ -218,6 +226,5 @@ class Model:
         submit['label'] = test_pred_y
         submit['label'] = submit['label'].astype('int')
         # to csv
-        submit_path = '../submit/{}'.format(self.config['eval']['submit_file'])
-        submit.to_csv(submit_path, index=False)
+        submit.to_csv(self.config['train']['submit_path'], index=False)
         logger.info('generate submit {}'.format(submit_path))

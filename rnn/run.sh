@@ -1,1 +1,1 @@
-CUDA_VISIBLE_DEVICES='0' python ../main.py --batch_size 16 --train_steps 5000
+CUDA_VISIBLE_DEVICES='0' python ../main.py --is_demo 1

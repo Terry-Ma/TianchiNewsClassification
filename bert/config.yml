@@ -5,8 +5,8 @@ preprocess:
   is_demo: 0
 
 model:
-  model_name: bert
-  load_checkpoint: ''
+  model_name: 'bert'
+  load_checkpoint_path: ''
   load_wv_path: ''
   embed_size: 512    # in bert, embed_size = hidden_num
 
@@ -14,11 +14,11 @@ train:
   multi_gpu: 0
   batch_size: 16
   lr: 0.00001
+  weight_decay: 0.01
   warmup_steps: 10000
   train_steps: 250000
   steps_per_check: 100
   steps_per_checkpoint: 50000
-  checkpoint_dir: 'bert/'
 
 bert_model:
   max_position_embeddings: 1024
@@ -26,6 +26,3 @@ bert_model:
   hidden_size: 512
   num_attention_heads: 8
   intermediate_size: 2048
-
-eval: 
-  submit_file: 'submit.csv'

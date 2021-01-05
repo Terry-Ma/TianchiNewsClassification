@@ -18,19 +18,17 @@ model:
 
 train:
   multi_gpu: 0
-  batch_size: 32
+  batch_size: 128
   optimizer: 'Adam'   # Adam & SGD
   lr: 0.0003
   momentum: 0.0
   weight_decay: 0.0    # torch L2
   lr_scheduler: ''   # 'step' & 'metric' & ''
-  lr_step_size: 10    # 1000 = 10 * 100
+  lr_step_size: 2000
   lr_step_gamma: 0.8
-  lr_patience: 5   # 500 = 5 * 100
-  lr_factor: 0.3
   train_steps: 20000
   steps_per_check: 100
-  steps_per_checkpoint: 2000
+  steps_per_checkpoint: 5000
   checkpoint_dir: 'RNN/'
 
 eval: 

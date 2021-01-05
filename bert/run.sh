@@ -1,1 +1,1 @@
-CUDA_VISIBLE_DEVICES='2,3' python ../main.py --multi_gpu 1 --warmup_steps 0 --lr 0.0003
+CUDA_VISIBLE_DEVICES='0,1' python ../main.py --multi_gpu 1 --batch_size 32 --log_path './train_log/bert_with_pad_attention_mask.log' --checkpoint_path './checkpoint/bert_with_pad_attention_mask/'

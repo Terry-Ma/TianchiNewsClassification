@@ -27,9 +27,9 @@ def checkpoint_process(checkpoint_dir):
         logger.info('checkpoint dir exist: {}'.format(checkpoint_dir))
 
 def generate_config(args):
-    with open(args.config_path) as f:
+    with open('./config.yml') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
-    logger.info('load config from {}'.format(args.config_path))
+    logger.info('load config from {}'.format('./config.yml'))
     args_dict = vars(args)
     for key, value in args_dict.items():
         if value is not None:
@@ -41,6 +41,9 @@ def generate_config(args):
                     break
             if not find_k:
                 config['train'][key] = value
+    config['train']['checkpoint_path'] = './checkpoint/{}/'.format(args.experiment_name)
+    config['train']['submit_path'] = '../submit/{}.csv'.format(args.experiment_name)
+    config['train']['tb_path'] = './train_log/tensorboard/{}/'.format(ags.experiment_name)
     logger.info('will use config \n{}'.format(config))
 
     return config

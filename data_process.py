@@ -57,9 +57,9 @@ def data2tensor(train_X, train_y, val_X, val_y, test_X, max_len, min_freq, is_be
     train_y = torch.tensor(train_y)
     val_y = torch.tensor(val_y)
     # X truncated
-    train_X = truncated(train_X, max_len, is_bert)
-    val_X = truncated(val_X, max_len, is_bert)
-    test_X = truncated(test_X, max_len, is_bert)
+    train_X, train_mask = truncated(train_X, max_len, is_bert)
+    val_X, val_mask = truncated(val_X, max_len, is_bert)
+    test_X, test_mask = truncated(test_X, max_len, is_bert)
     # generate vocab
     vocab = generate_vocab(train_X, min_freq, vocab_path)
     # transform
@@ -67,9 +67,14 @@ def data2tensor(train_X, train_y, val_X, val_y, test_X, max_len, min_freq, is_be
     val_X = val_X.apply(lambda x: [vocab.stoi[word] for word in x])
     test_X = test_X.apply(lambda x: [vocab.stoi[word] for word in x])
     # to tensor
-    train_X = torch.from_numpy(np.array(list(train_X)))
-    val_X = torch.from_numpy(np.array(list(val_X)))
-    test_X = torch.from_numpy(np.array(list(test_X)))
+    if not is_bert:
+        train_X = torch.from_numpy(np.array(list(train_X)))
+        val_X = torch.from_numpy(np.array(list(val_X)))
+        test_X = torch.from_numpy(np.array(list(test_X)))
+    else:
+        train_X = torch.from_numpy(np.array([list(train_X), list(train_mask)])).permute(1, 0, 2)
+        val_X = torch.from_numpy(np.array([list(val_X), list(val_mask)])).permute(1, 0, 2)
+        test_X = torch.from_numpy(np.array([list(test_X), list(test_mask)])).permute(1, 0, 2)
     logger.info('data2tensor: train shape {}, val shape {}, test shape {}, vocab size {}'.format(\
         train_X.shape, val_X.shape, test_X.shape, len(vocab)))
 
@@ -77,14 +82,17 @@ def data2tensor(train_X, train_y, val_X, val_y, test_X, max_len, min_freq, is_be
 
 def truncated(data, max_len, is_bert):
     data = data.apply(lambda x: x.split())
+    pad_attention_mask = None
     if not is_bert:
         data = data.apply(lambda x: x[:max_len] if len(x) >= max_len else \
             x + [PAD] * (max_len - len(x)))
     else:
+        pad_attention_mask = data.apply(lambda x: [1] * max_len if len(x) >= max_len - 1 else \
+            [1] * (len(x) + 1) + [0] * (max_len - len(x) - 1))
         data = data.apply(lambda x: [CLS] + x[:max_len - 1] if len(x) >= max_len - 1 else \
             [CLS] + x + [PAD] * (max_len - len(x) - 1))
     
-    return data
+    return data, pad_attention_mask
 
 def generate_vocab(train_X, min_freq, vocab_path):
     if os.path.exists(vocab_path):
