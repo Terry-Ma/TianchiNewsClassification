@@ -11,9 +11,9 @@ model:
   hidden_num: 256
   layer_num: 3
   dropout: 0.5
-  agg_function: 'max'    # 'mean' & 'max' & 'attention' or ''
+  agg_function: 'Max'    # 'Mean' or 'Max' or 'Attention' or 'GRU' or 'Concat'
   attention_size: 128
-  load_checkpoint: ''
+  load_checkpoint_path: ''
   load_wv_path: '../word2vec/skip_gram.wv'
 
 train:
@@ -29,7 +29,4 @@ train:
   train_steps: 20000
   steps_per_check: 100
   steps_per_checkpoint: 5000
-  checkpoint_dir: 'RNN/'
-
-eval: 
-  submit_file: 'submit.csv'
+  checkpoint_path: 'RNN/'

@@ -44,12 +44,8 @@ class BiRNN(nn.Module):
                 dropout=self.config['model']['dropout'],
                 bidirectional=True
                 )
-        if self.config['model']['agg_function'] == 'attention':
-            self.attention = Attention(2 * self.config['model']['hidden_num'], self.config['model']['attention_size'])
-        elif self.config['model']['agg_function'] == 'max':
-            self.max_pool = torch.nn.MaxPool1d(self.config['preprocess']['max_len'])
-        elif self.config['model']['agg_function'] == 'mean':
-            self.mean_pool = torch.nn.AvgPool1d(self.config['preprocess']['max_len'])
+        if self.config['model']['agg_function'] != 'Concat':
+            self.agg_layer = AggLayer(self.config, 2 * self.config['model']['hidden_num'])
         self.linear = nn.Linear(2 * self.config['model']['hidden_num'], self.config['model']['type_num'])
     
     def forward(self, X):
@@ -57,14 +53,11 @@ class BiRNN(nn.Module):
         args:
             X: (batch_size, seq_len)
         '''
+        self.birnn.flatten_parameters()
         embed_X = self.embedding(X).permute(1, 0, 2)
         output, _ = self.birnn(embed_X)
-        if self.config['model']['agg_function'] == 'attention':
-            linear_input = self.attention(output.permute(1, 0, 2))
-        elif self.config['model']['agg_function'] == 'max':
-            linear_input = self.max_pool(output.permute(1, 2, 0)).squeeze()
-        elif self.config['model']['agg_function'] == 'mean':
-            linear_input = self.mean_pool(output.permute(1, 2, 0)).squeeze()
+        if self.config['model']['agg_function'] != 'Concat':
+            linear_input = self.agg_layer(output)
         else:
             linear_input = torch.cat((output[-1, :, :self.config['model']['hidden_num']], \
                 output[0, :, self.config['model']['hidden_num']:]), dim=1)
@@ -73,7 +66,32 @@ class BiRNN(nn.Module):
         return output
 
 
-class Attention(nn.Module):
+class AggLayer(nn.Module):
+    def __init__(self, config, input_size):
+        super().__init__()
+        self.config = config
+        if self.config['model']['agg_function'] == 'Attention':
+            if 'attention_size' in self.config['model']:
+                self.agg_layer = AggAttention(input_size, self.config['model']['attention_size'])
+            else:
+                self.agg_layer = AggAttention(input_size, input_size)
+        elif self.config['model']['agg_function'] == 'Max':
+            self.agg_layer = AggMax(self.config['preprocess']['max_len'])
+        elif self.config['model']['agg_function'] == 'Mean':
+            self.agg_layer = AggMean(self.config['preprocess']['max_len'])
+        else:
+            self.agg_layer = AggGRU(input_size)
+
+    def forward(self, X):
+        '''
+        Args:
+            X: (seq_len, batch_size, input_size)
+        '''
+
+        return self.agg_layer(X)
+
+
+class AggAttention(nn.Module):
     def __init__(self, input_size, attention_size):
         super().__init__()
         self.attention = nn.Sequential(
@@ -85,15 +103,46 @@ class Attention(nn.Module):
     def forward(self, X):
         '''
         Args:
-            X: (batch_size, seq_len, input_size)
+            X: (seq_len, batch_size, input_size)
         Returns:
             output: (batch_size, input_size)
         '''
+        X = X.permute(1, 0, 2)
         weight = self.attention(X)
         weight = softmax(weight, dim=1)
         output = (X * weight).sum(dim=1).squeeze()
 
         return output
+
+
+class AggMax(nn.Module):
+    def __init__(self, seq_len):
+        super().__init__()
+        self.mean_pool = torch.nn.MaxPool1d(seq_len)
+    
+    def forward(self, X):
+        return self.mean_pool(X.permute(1, 2, 0)).squeeze()
+
+
+class AggMean(nn.Module):
+    def __init__(self, seq_len):
+        super().__init__()
+        self.max_pool = torch.nn.AvgPool1d(seq_len)
+    
+    def forward(self, X):
+        return self.max_pool(X.permute(1, 2, 0)).squeeze()
+
+
+class AggGRU(nn.Module):
+    def __init__(self, input_size):
+        super().__init__()
+        self.gru = nn.GRU(input_size, input_size)
+    
+    def forward(self, X):
+        self.gru.flatten_parameters()
+        output, _ = self.gru(X)
+        
+        return output[-1, :, :]
 
 
 class Bert(nn.Module):
@@ -119,6 +168,8 @@ class Bert(nn.Module):
                 pretrain_weight,
                 padding_idx=self.config['model']['pad_id']
                 )
+        if self.config['model']['agg_function'] != 'CLS':
+            self.agg_layer = AggLayer(self.config, bert_config.hidden_size)
         self.classifier = nn.Sequential(
             nn.Dropout(bert_config.hidden_dropout_prob),
             nn.Linear(bert_config.hidden_size, self.config['model']['type_num'])
@@ -126,8 +177,13 @@ class Bert(nn.Module):
     
     def forward(self, X):
         bert_output = self.bert_model(input_ids=X[:, 0, :], attention_mask=X[:, 1, :])
-        pool_output = bert_output.pooler_output   # (batch_size, hidden_num)
-        output = self.classifier(pool_output)
+        if self.config['model']['agg_function'] != 'CLS':
+            # last hidden state (batch_size, seq_len, hidden_num)
+            agg_input = bert_output.last_hidden_state.permute(1, 0, 2)
+            agg_output = self.agg_layer(agg_input)  # (batch_size, hidden_num)
+        else:
+            agg_output = bert_output.pooler_output   # (batch_size, hidden_num)
+        output = self.classifier(agg_output)
 
         return output
 

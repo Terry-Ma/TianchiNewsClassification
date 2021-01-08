@@ -142,6 +142,7 @@ class Model:
                     tb_writer.add_scalar('Loss/val_loss', check_val_loss / check_val_steps, self.cur_train_steps)
                     tb_writer.add_scalar('F1_score/train_f1', check_train_f1, self.cur_train_steps)
                     tb_writer.add_scalar('F1_score/val_f1', check_val_f1, self.cur_train_steps)
+                    tb_writer.add_scalar('lr', self.optimizer.lr, self.cur_train_steps)
                     # init
                     check_train_steps = 0
                     check_train_loss = 0

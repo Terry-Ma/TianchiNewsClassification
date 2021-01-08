@@ -9,6 +9,7 @@ model:
   load_checkpoint_path: ''
   load_wv_path: ''
   embed_size: 512    # in bert, embed_size = hidden_num
+  agg_function: 'GRU'   # Max & Mean & Attention & GRU & 'CLS'
 
 train:
   multi_gpu: 0
@@ -22,7 +23,7 @@ train:
 
 bert_model:
   max_position_embeddings: 1024
-  num_hidden_layers: 6
-  hidden_size: 512
-  num_attention_heads: 8
-  intermediate_size: 2048
+  num_hidden_layers: 4
+  hidden_size: 256
+  num_attention_heads: 4
+  intermediate_size: 1024
