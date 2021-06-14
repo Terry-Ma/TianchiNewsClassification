@@ -4,7 +4,7 @@ import random
 from gensim.models import Word2Vec, KeyedVectors
 
 data_path = '../data/'
-save_path = './skip_gram.wv'
+save_path = './skip_gram_256.wv'
 
 class SentencesGenerator:
     def __init__(self):
@@ -21,7 +21,7 @@ class SentencesGenerator:
 def train_skipgram(sentences_generator):
     model = Word2Vec(
         sentences=sentences_generator,
-        size=128,
+        size=256,   # dim 256
         window=5,
         min_count=5,
         sg=1,  # skip-gram
@@ -40,6 +40,6 @@ def load_test():
     print('0' in sk_wv)
 
 if __name__ == '__main__':
-    # sentences_generator = SentencesGenerator()
-    # train(sentences_generator)
-    load_test()
+    sentences_generator = SentencesGenerator()
+    train_skipgram(sentences_generator)
+    # load_test()

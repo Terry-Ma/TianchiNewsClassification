@@ -150,7 +150,7 @@ class Model:
                     check_train_pred_y = np.array([])
                     self.model.train()    # dropout...
                 # checkpoint
-                if self.cur_train_steps > 0 and self.cur_train_steps % self.config['train']['steps_per_checkpoint'] == 0:
+                if self.cur_train_steps % self.config['train']['steps_per_checkpoint'] == 0:
                     cpt_path = '{}/checkpoint_steps_{}.cpt'.format(self.config['train']['checkpoint_path'], self.cur_train_steps)
                     self.save_checkpoint(cpt_path)
                 self.cur_train_steps += 1

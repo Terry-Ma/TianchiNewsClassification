@@ -10,6 +10,9 @@ model:
   embed_size: 128
   hidden_num: 256
   layer_num: 3
+  use_embed_dropout: 0
+  embed_dropout_type: 'spatial'
+  embed_dropout: 0.5
   dropout: 0.5
   agg_function: 'Max'    # 'Mean' or 'Max' or 'Attention' or 'GRU' or 'Concat'
   attention_size: 128
@@ -26,7 +29,7 @@ train:
   lr_scheduler: ''   # 'step' & 'metric' & ''
   lr_step_size: 2000
   lr_step_gamma: 0.8
-  train_steps: 20000
+  train_steps: 30000
   steps_per_check: 100
-  steps_per_checkpoint: 5000
+  steps_per_checkpoint: 100000
   checkpoint_path: 'RNN/'

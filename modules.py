@@ -28,6 +28,11 @@ class BiRNN(nn.Module):
                 self.config['model']['vocab_size'],
                 self.config['model']['embed_size']
                 )
+        if self.config['model']['use_embed_dropout']:
+            if self.config['model']['embed_dropout_type'] == 'spatial':
+                self.embed_dropout = nn.Dropout2d(p=self.config['model']['embed_dropout'])
+            else:
+                self.embed_dropout = nn.Dropout(p=self.config['model']['embed_dropout'])
         if self.config['model']['model_type'] == 'GRU':
             self.birnn = nn.GRU(
                 input_size=self.config['model']['embed_size'],
@@ -54,7 +59,13 @@ class BiRNN(nn.Module):
             X: (batch_size, seq_len)
         '''
         self.birnn.flatten_parameters()
-        embed_X = self.embedding(X).permute(1, 0, 2)
+        embed_X = self.embedding(X)   # (batch_size, seq_len, embed_size)
+        if self.config['model']['use_embed_dropout']:
+            if self.config['model']['embed_dropout_type'] == 'spatial':
+                embed_X = self.embed_dropout(embed_X.permute(0, 2, 1)).permute(2, 0, 1)
+            else:
+                embed_X = self.embed_dropout(embed_X).permute(1, 0, 2)
+        # embed_X: (seq_len, batch_size, embed_size)
         output, _ = self.birnn(embed_X)
         if self.config['model']['agg_function'] != 'Concat':
             linear_input = self.agg_layer(output)
