@@ -79,11 +79,11 @@ class Model:
         while self.cur_train_steps <= total_steps:
             check_train_steps = 0
             check_train_loss = 0
-            check_train_y = np.array([])
-            check_train_pred_y = np.array([])
+            check_train_y = []
+            check_train_pred_y = []
             # shuffle every epoch
             for batch_X, batch_y in self.train_iter:
-                check_train_y = np.concatenate((check_train_y, np.array(batch_y)))
+                check_train_y.append(np.array(batch_y))
                 # train
                 batch_X = batch_X.to(self.device)
                 batch_y = batch_y.to(self.device)
@@ -96,19 +96,21 @@ class Model:
                 check_train_steps += 1
                 check_train_loss += train_loss.item()
                 batch_pred_y = batch_pred_y.argmax(dim=1).to('cpu')
-                check_train_pred_y = np.concatenate((check_train_pred_y, np.array(batch_pred_y)))
+                check_train_pred_y.append(np.array(batch_pred_y))
                 # check & val step
                 if self.cur_train_steps > 0 and self.cur_train_steps % self.config['train']['steps_per_check'] == 0:
                     self.model.eval()    # dropout...
                     check_val_loss = 0
                     check_val_steps = 0
-                    check_val_y = np.array([])
-                    check_val_pred_y = np.array([])
+                    check_val_y = []
+                    check_val_pred_y = []
                     # train f1
+                    check_train_y = np.concatenate(check_train_y)
+                    check_train_pred_y = np.concatenate(check_train_pred_y)
                     check_train_f1 = f1_score(check_train_y, check_train_pred_y, average='macro')
                     with torch.no_grad():
                         for batch_X, batch_y in self.val_iter:
-                            check_val_y = np.concatenate((check_val_y, np.array(batch_y)))
+                            check_val_y.append(np.array(batch_y))
                             # val
                             batch_X = batch_X.to(self.device)
                             batch_y = batch_y.to(self.device)
@@ -117,8 +119,10 @@ class Model:
                             check_val_loss += self.loss(batch_pred_y, batch_y).item()
                             check_val_steps += 1
                             batch_pred_y = batch_pred_y.argmax(dim=1).to('cpu')
-                            check_val_pred_y = np.concatenate((check_val_pred_y, np.array(batch_pred_y)))
+                            check_val_pred_y.append(np.array(batch_pred_y))
                     # val f1
+                    check_val_y = np.concatenate(check_val_y)
+                    check_val_pred_y = np.concatenate(check_val_pred_y)
                     check_val_f1 = f1_score(check_val_y, check_val_pred_y, average='macro')
                     # max f1 model
                     if check_val_f1 > self.max_val_f1:
@@ -146,8 +150,8 @@ class Model:
                     # init
                     check_train_steps = 0
                     check_train_loss = 0
-                    check_train_y = np.array([])
-                    check_train_pred_y = np.array([])
+                    check_train_y = []
+                    check_train_pred_y = []
                     self.model.train()    # dropout...
                 # checkpoint
                 if self.cur_train_steps % self.config['train']['steps_per_checkpoint'] == 0:

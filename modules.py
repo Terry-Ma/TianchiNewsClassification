@@ -65,6 +65,8 @@ class BiRNN(nn.Module):
                 embed_X = self.embed_dropout(embed_X.permute(0, 2, 1)).permute(2, 0, 1)
             else:
                 embed_X = self.embed_dropout(embed_X).permute(1, 0, 2)
+        else:
+            embed_X = embed_X.permute(1, 0, 2)
         # embed_X: (seq_len, batch_size, embed_size)
         output, _ = self.birnn(embed_X)
         if self.config['model']['agg_function'] != 'Concat':
@@ -129,19 +131,19 @@ class AggAttention(nn.Module):
 class AggMax(nn.Module):
     def __init__(self, seq_len):
         super().__init__()
-        self.mean_pool = torch.nn.MaxPool1d(seq_len)
+        self.max_pool = torch.nn.MaxPool1d(seq_len)
     
     def forward(self, X):
-        return self.mean_pool(X.permute(1, 2, 0)).squeeze()
+        return self.max_pool(X.permute(1, 2, 0)).squeeze()
 
 
 class AggMean(nn.Module):
     def __init__(self, seq_len):
         super().__init__()
-        self.max_pool = torch.nn.AvgPool1d(seq_len)
+        self.mean_pool = torch.nn.AvgPool1d(seq_len)
     
     def forward(self, X):
-        return self.max_pool(X.permute(1, 2, 0)).squeeze()
+        return self.mean_pool(X.permute(1, 2, 0)).squeeze()
 
 
 class AggGRU(nn.Module):
